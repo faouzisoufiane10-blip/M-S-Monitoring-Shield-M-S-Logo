@@ -1,0 +1,23 @@
+# name=loki/local-config.yaml
+auth_enabled: false
+server:
+  http_listen_port: 3100
+ingester:
+  lifecycler:
+    ring:
+      kvstore:
+        store: inmemory
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: boltdb
+      object_store: filesystem
+      schema: v11
+      index:
+        prefix: index_
+        period: 168h
+storage_config:
+  boltdb:
+    directory: /loki/index
+  filesystem:
+    directory: /loki/chunks
