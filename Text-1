@@ -1,0 +1,16 @@
+# name=server/.env.example
+# Copy to server/.env and edit
+FLASK_ENV=production
+SECRET_KEY=change_this_to_a_random_value
+DB_PATH=/app/data/m-s.db
+
+# Telegram (optional)
+TELEGRAM_TOKEN=
+TELEGRAM_CHAT_ID=
+
+# SMTP (optional)
+SMTP_HOST=
+SMTP_PORT=587
+SMTP_USER=
+SMTP_PASS=
+SMTP_FROM=
