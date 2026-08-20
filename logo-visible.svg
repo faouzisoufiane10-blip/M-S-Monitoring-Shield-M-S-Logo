@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="260" viewBox="0 0 900 260" role="img" aria-label="M-S Logo">
+  <rect width="100%" height="100%" fill="#071727"/>
+  <!-- Shield icon -->
+  <g transform="translate(80,30)">
+    <path d="M70 0 C110 0 140 25 140 60 C140 120 95 160 70 180 C45 160 0 120 0 60 C0 25 30 0 70 0 Z"
+          fill="#ffffff" stroke="#0ea5a9" stroke-width="6" />
+    <text x="70" y="118" font-family="Segoe UI, Roboto, Helvetica, Arial" font-size="64" font-weight="700" fill="#0ea5a9" text-anchor="middle">M‑S</text>
+  </g>
+  <g transform="translate(260,40)">
+    <text x="0" y="60" font-family="Segoe UI, Roboto, Helvetica, Arial" font-size="64" font-weight="800" fill="#ffffff">M‑S</text>
+    <text x="0" y="110" font-family="Segoe UI, Roboto, Helvetica, Arial" font-size="20" fill="#ffd54a">Faouzi47 — Defensive Suite</text>
+  </g>
+</svg>
