@@ -1,0 +1,88 @@
+# name=sensor/sensor.py
+import time
+import yaml
+import json
+import requests
+import argparse
+from datetime import datetime
+
+from rules import check_deauth, check_evil_twin
+
+def load_config(path):
+    with open(path) as f:
+        return yaml.safe_load(f)
+
+def tail_json_file(path):
+    # very simple tail: read file modification and parse JSON lines if appended
+    pos = 0
+    while True:
+        try:
+            with open(path, 'r', encoding='utf-8') as fh:
+                fh.seek(pos)
+                for line in fh:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        yield json.loads(line)
+                    except Exception:
+                        continue
+                pos = fh.tell()
+        except FileNotFoundError:
+            pass
+        time.sleep(1.0)
+
+def extract_events_from_kismet(json_line):
+    # Kismet emits varied structures; for our simple sensor, standardize certain events
+    # caller should handle None
+    if 'type' in json_line and json_line.get('type') == 'beacon':
+        # sample mapping
+        return {'type': 'beacon', 'essid': json_line.get('ssid'), 'bssid': json_line.get('bssid'),
+                'rssi': json_line.get('rssi'), 'crypto': json_line.get('crypto'), 'timestamp': int(time.time())}
+    # else return None for now
+    return None
+
+def main(cfg):
+    server_url = cfg['server']['url']
+    kismet_path = cfg['kismet']['json_log_path']
+    # simple collectors
+    ap_state = {}  # essid -> list of aps
+    recent_events = []  # list of dicts with type and timestamp
+    for obj in tail_json_file(kismet_path):
+        ev = extract_events_from_kismet(obj)
+        if ev is None:
+            continue
+        # append event
+        recent_events.append({'type': ev['type'], 'timestamp': ev['timestamp']})
+        # trim
+        if len(recent_events) > 1000:
+            recent_events = recent_events[-1000:]
+        # update aps state
+        essid = ev.get('essid') or '<hidden>'
+        aps = ap_state.setdefault(essid, [])
+        aps.append({'bssid': ev.get('bssid'), 'rssi': ev.get('rssi'), 'crypto': ev.get('crypto'), 'channel': obj.get('channel')})
+        # run rules periodically
+        # deauth check
+        if check_deauth(recent_events, threshold=cfg['detection']['deauth_threshold'], window_seconds=cfg['detection']['deauth_window_seconds']):
+            payload = {'type': 'deauth_spike', 'detail': {'count': cfg['detection']['deauth_threshold'], 'window': cfg['detection']['deauth_window_seconds']}, 'timestamp': int(time.time())}
+            try:
+                requests.post(server_url, json=payload, timeout=5)
+            except Exception:
+                pass
+        # evil twin
+        alerts = check_evil_twin(ap_state)
+        for a in alerts:
+            payload = {'type': 'evil_twin_suspected', 'detail': a, 'timestamp': int(time.time())}
+            try:
+                requests.post(server_url, json=payload, timeout=5)
+            except Exception:
+                pass
+        # small sleep to avoid busy loop
+        time.sleep(0.1)
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--config", default="sensor/config.yaml", help="path to config")
+    args = parser.parse_args()
+    cfg = load_config(args.config)
+    main(cfg)
