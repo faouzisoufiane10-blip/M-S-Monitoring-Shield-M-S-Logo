@@ -1,0 +1,24 @@
+# name=sensor/rules.py
+# قواعد كشف بسيطة - نقطة بداية قابلة للتطوير
+def check_deauth(events, threshold=20, window_seconds=30):
+    """
+    events: قائمة من الأحداث المرتبة زمنياً والتي تحتوي على حقل 'type' و 'timestamp'
+    تعيد True إذا تجاوزت وتيرة إطارات deauth الحد.
+    """
+    if not events:
+        return False
+    now = events[-1]['timestamp']
+    window_events = [e for e in events if e['timestamp'] >= now - window_seconds and e.get('type') == 'deauth']
+    return len(window_events) >= threshold
+
+def check_evil_twin(aps, rssi_diff=15):
+    """
+    aps: dict keyed by ESSID -> list of dicts {bssid, channel, rssi, crypto}
+    يعيد قائمة بالتنبيهات عند وجود أكثر من BSSID لنفس ESSID
+    """
+    alerts = []
+    for essid, list_aps in aps.items():
+        if len(list_aps) > 1:
+            alerts.append({'essid': essid, 'reason': 'multiple_bssids', 'count': len(list_aps)})
+        # could add more heuristics: sudden big rssi diff, security downgrade, etc.
+    return alerts
