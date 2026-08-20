@@ -1,0 +1,3 @@
+# name=sensor/requirements.txt
+PyYAML==6.0
+requests==2.31.0
