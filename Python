@@ -1,0 +1,90 @@
+# name=server/app.py
+import os
+import sqlite3
+import json
+from datetime import datetime
+from flask import Flask, request, jsonify, g, render_template_string
+
+DB_PATH = os.environ.get("DB_PATH", "/app/data/m-s.db")
+os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+
+def get_db():
+    db = getattr(g, '_database', None)
+    if db is None:
+        db = g._database = sqlite3.connect(DB_PATH, check_same_thread=False)
+        db.row_factory = sqlite3.Row
+    return db
+
+def init_db():
+    db = get_db()
+    db.execute("""CREATE TABLE IF NOT EXISTS events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        timestamp TEXT,
+        event_type TEXT,
+        payload TEXT
+    )""")
+    db.commit()
+
+app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'devkey')
+
+@app.before_first_request
+def startup():
+    init_db()
+
+@app.teardown_appcontext
+def close_connection(exception):
+    db = getattr(g, '_database', None)
+    if db is not None:
+        db.close()
+
+@app.route("/api/events", methods=["POST"])
+def api_events():
+    try:
+        data = request.get_json(force=True)
+    except Exception:
+        return jsonify({"error": "invalid json"}), 400
+    ts = datetime.utcnow().isoformat() + "Z"
+    etype = data.get("type", "unknown")
+    payload = json.dumps(data)
+    db = get_db()
+    db.execute("INSERT INTO events (timestamp, event_type, payload) VALUES (?, ?, ?)", (ts, etype, payload))
+    db.commit()
+    # TODO: send alerts (telegram/email) - to be implemented
+    return jsonify({"status": "ok"}), 201
+
+# Simple UI to list recent events
+@app.route("/")
+def index():
+    db = get_db()
+    cur = db.execute("SELECT id, timestamp, event_type, payload FROM events ORDER BY id DESC LIMIT 200")
+    rows = cur.fetchall()
+    items = []
+    for r in rows:
+        try:
+            p = json.loads(r['payload'])
+        except Exception:
+            p = r['payload']
+        items.append({"id": r['id'], "timestamp": r['timestamp'], "type": r['event_type'], "payload": p})
+    # minimal template
+    template = """
+    <!doctype html><title>M-S Dashboard</title>
+    <h1>M-S — Recent Events</h1>
+    <p>Rows: {{count}}</p>
+    <table border=1 cellpadding=6>
+      <tr><th>ID</th><th>Timestamp</th><th>Type</th><th>Payload</th></tr>
+      {% for it in items %}
+      <tr>
+        <td>{{ it.id }}</td>
+        <td>{{ it.timestamp }}</td>
+        <td>{{ it.type }}</td>
+        <td><pre>{{ it.payload | tojson(indent=2) }}</pre></td>
+      </tr>
+      {% endfor %}
+    </table>
+    """
+    return render_template_string(template, items=items, count=len(items))
+
+if __name__ == "__main__":
+    init_db()
+    app.run(host="0.0.0.0", port=5000)
