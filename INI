@@ -1,0 +1,14 @@
+# name=systemd/m-s-sensor.service
+[Unit]
+Description=M-S Sensor Service
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/opt/m-s/sensor
+ExecStart=/opt/m-s/sensor/venv/bin/python /opt/m-s/sensor/sensor.py --config /opt/m-s/sensor/config.yaml
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
