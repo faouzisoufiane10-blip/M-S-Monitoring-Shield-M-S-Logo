@@ -1,0 +1,17 @@
+# name=sensor/config.yaml.example
+server:
+  url: "http://SERVER_IP:5000/api/events"
+
+kismet:
+  json_log_path: "/var/log/kismet/dump.json"
+
+detection:
+  deauth_threshold: 20
+  deauth_window_seconds: 30
+  evil_twin_rssi_diff: 15
+  security_downgrade: true
+
+alerts:
+  telegram_enabled: false
+  email_enabled: false
+  webhook_enabled: false
